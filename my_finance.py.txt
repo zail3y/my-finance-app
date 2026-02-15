@@ -1,0 +1,67 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# --- ÅÚÏÇÏÇÊ ÇáãÍÑß ÇáÊäÈÄí ---
+st.header("?? ãÓÊÔÑİ ÇáËÑæÉ ÇáãÓÊŞÈáí (5 ÓäæÇÊ)")
+
+with st.expander("?? ÅÚÏÇÏÇÊ ÇáİÑÖíÇÊ ÇáÊäÈÄíÉ"):
+    col_set1, col_set2 = st.columns(2)
+    with col_set1:
+        annual_growth = st.slider("ãÚÏá Çáäãæ ÇáÓäæí ÇáãÊæŞÚ ááãÍİÙÉ (%)", 1, 15, 8)
+        monthly_deposit = st.number_input("ÇáãÈáÛ ÇáÔåÑí ÇáãÓÊåÏİ ááÇÓÊËãÇÑ (ÑíÇá)", value=2500)
+    with col_set2:
+        projection_years = st.select_slider("ÇÎÊÑ İÊÑÉ ÇáÊäÈÄ (ÓäæÇÊ)", options=[1, 2, 3, 4, 5], value=5)
+
+# --- ÎæÇÑÒãíÉ ÇáÍÓÇÈ ÇáÊäÈÄí ---
+def forecast_wealth(current_assets, current_debts, monthly_inv, growth_rate, years):
+    data = []
+    assets = current_assets
+    debts = current_debts
+    monthly_growth = (growth_rate / 100) / 12
+    
+    # ÃŞÓÇØ ÔåÑíÉ ËÇÈÊÉ (ŞÑÖ ÔÎÕí + ÚŞÇÑí ÕÇİí) = 5806 ÑíÇá ÊŞÑíÈÇğ
+    monthly_debt_payment = 3617 + 2189 
+    
+    for month in range(1, (years * 12) + 1):
+        # äãæ ÇáÃÕæá + ÇáÅíÏÇÚ ÇáÔåÑí
+        assets = (assets * (1 + monthly_growth)) + monthly_inv
+        # ÇäÎİÇÖ ÇáÏíæä (ÊÈÓíØíÇğ)
+        if debts > 0:
+            debts -= monthly_debt_payment
+            if debts < 0: debts = 0
+            
+        if month % 12 == 0:
+            year_num = month // 12
+            data.append({
+                "ÇáÓäÉ": f"ÇáÓäÉ {year_num}",
+                "ÅÌãÇáí ÇáÃÕæá": round(assets, 2),
+                "ÅÌãÇáí ÇáÏíæä": round(debts, 2),
+                "ÕÇİí ÇáËÑæÉ": round(assets - debts, 2)
+            })
+    return pd.DataFrame(data)
+
+# --- ÚÑÖ ÇáäÊÇÆÌ ---
+total_assets_now = sum(st.session_state.investments.values())
+total_debts_now = sum(st.session_state.debts.values())
+
+projection_df = forecast_wealth(total_assets_now, total_debts_now, monthly_deposit, annual_growth, projection_years)
+
+# ÇáÑÓã ÇáÈíÇäí ááÊäÈÄ
+fig_proj = px.line(projection_df, x="ÇáÓäÉ", y=["ÅÌãÇáí ÇáÃÕæá", "ÅÌãÇáí ÇáÏíæä", "ÕÇİí ÇáËÑæÉ"],
+                  title="ãÓÇÑ äãæ ÇáËÑæÉ ÇáÕÇİíÉ æÊäÇŞÕ ÇáÏíæä",
+                  labels={"value": "ÇáãÈáÛ (ÑíÇá)", "variable": "ÇáÈäÏ"},
+                  markers=True)
+st.plotly_chart(fig_proj, use_container_width=True)
+
+# ÌÏæá ÇáÈíÇäÇÊ ÇáÊäÈÄíÉ
+st.subheader("?? ÌÏæá ÇáÈíÇäÇÊ ÇáãÊæŞÚÉ")
+st.dataframe(projection_df.set_index("ÇáÓäÉ"), use_container_width=True)
+
+# ÊÍáíá ÇáĞßÇÁ ÇáÇÕØäÇÚí ááÊäÈÄ
+st.markdown("---")
+final_net_worth = projection_df.iloc[-1]["ÕÇİí ÇáËÑæÉ"]
+if final_net_worth > 0:
+    st.success(f"?? **ÈÔÑì ãÇáíÉ:** ÈäÇÁğ Úáì åĞÇ ÇáãÓÇÑ¡ ÓÊÊÍæá ËÑæÊß ÇáÕÇİíÉ Åáì ÇáÑŞã **ÇáãæÌÈ** ÎáÇá İÊÑÉ ÇáÊäÈÄ¡ áÊÕá Åáì **{final_net_worth:,.2f} ÑíÇá** ÈÚÏ {projection_years} ÓäæÇÊ.")
+else:
+    st.warning("?? **ÊÍáíá ÇáãÓÇÑ:** ÇáÏíæä áÇ ÊÒÇá ÊÖÛØ Úáì ÕÇİí ÇáËÑæÉ. ääÕÍ ÈÒíÇÏÉ ãÈÇáÛ 'ÇáÊßáíİ' ÇáãæÌåÉ áÓÏÇÏ ÇáŞÑÖ ÇáÔÎÕí áÊÓÑíÚ ÇáæÕæá áäŞØÉ ÇáÊÚÇÏá.")
