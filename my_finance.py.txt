@@ -1,115 +1,53 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from datetime import datetime
+import json
+import os
 
-# --- إعدادات الصفحة ---
-st.set_page_config(page_title="نظامي المالي المتكامل", layout="wide")
+# --- وظائف الحفظ والقراءة (لضمان ديمومة البيانات) ---
+DB_FILE = "financial_data.json"
 
-# --- 1. قاعدة البيانات الداخلية (البيانات المستخرجة من صورك) ---
-if 'db' not in st.session_state:
-    st.session_state.db = {
-        'salary': 12835.0,
-        'housing_support': 1040.0,
-        'investments': {
-            'الراجحي المرن (محلي)': 92057.38,
-            'الراجحي القيادي (محلي)': 65964.96,
-            'الراجحي النشط (محلي)': 63249.39,
-            'مشورة نمو (عالمي)': 19823.00,
-            'مشورة توزيعات (عالمي)': 2656.00,
-            'دراية المالية (محلي)': 3576.28
-        },
-        'debts': {
-            'القرض العقاري المتبقي': 624227.45,
-            'القرض الشخصي المتبقي': 104882.85
-        },
-        'expenses': {
-            'قسط القرض الشخصي': 3617.0,
-            'قسط العقار (صافي بعد الدعم)': 2189.0,
-            'راتب السائق': 700.0,
-            'عاملة منزلية (مستقبلي)': 1200.0
+def load_data():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        # البيانات الأساسية التي استخرجناها من ملفاتك
+        return {
+            'investments': {
+                'الراجحي المرن (محلي)': 92057.38,
+                'الراجحي القيادي (محلي)': 65964.96,
+                'الراجحي النشط (محلي)': 63249.39,
+                'مشورة نمو (عالمي)': 19823.00,
+                'مشورة توزيعات (عالمي)': 2656.00,
+                'دراية المالية (محلي)': 3576.28
+            },
+            'debts': {
+                'القرض العقاري المتبقي': 624227.45,
+                'القرض الشخصي المتبقي': 104882.85
+            }
         }
-    }
 
-# --- 2. وظائف الحساب ---
-def get_total_assets():
-    return sum(st.session_state.db['investments'].values())
+def save_data(data):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
-def get_total_debts():
-    return sum(st.session_state.db['debts'].values())
+# --- تحميل البيانات عند بدء التطبيق ---
+if 'db' not in st.session_state:
+    st.session_state.db = load_data()
 
-# --- 3. تصميم واجهة الموقع ---
-st.title("🏦 محفظتي المالية الذكية")
-st.markdown(f"**تاريخ التحديث:** {datetime.now().strftime('%Y-%m-%d')}")
+# --- واجهة التطبيق (Streamlit UI) ---
+st.title("🛡️ محفظتي المالية الآمنة")
 
-tabs = st.tabs(["💎 ملخص الثروة", "📉 الديون والالتزامات", "🕌 حساب الزكاة", "🔮 توقعات 5 سنوات", "⚙️ تحديث البيانات"])
+# (بقية التبويبات السابقة تضاف هنا بنفس الطريقة)
 
-# --- التبويب 1: ملخص الثروة ---
-with tabs[0]:
-    assets = get_total_assets()
-    liabilities = get_total_debts()
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("إجمالي الاستثمارات", f"{assets:,.2f} ريال")
-    col2.metric("إجمالي المديونيات", f"{liabilities:,.2f} ريال", delta_color="inverse")
-    col3.metric("صافي الثروة", f"{assets - liabilities:,.2f} ريال")
-
-    df_inv = pd.DataFrame(list(st.session_state.db['investments'].items()), columns=['الصندوق', 'القيمة'])
-    fig = px.pie(df_inv, values='القيمة', names='الصندوق', title="توزيع أوزان الاستثمار")
-    st.plotly_chart(fig)
-
-# --- التبويب 2: الديون والالتزامات ---
-with tabs[1]:
-    st.subheader("⚠️ سجل الديون والالتزامات")
-    col_d1, col_d2 = st.columns(2)
-    with col_d1:
-        st.write("**القروض البنكية المتبقية:**")
-        st.table(pd.DataFrame(list(st.session_state.db['debts'].items()), columns=['البند', 'المبلغ المتبقي']))
-    with col_d2:
-        st.write("**المصاريف الثابتة القادمة:**")
-        st.table(pd.DataFrame(list(st.session_state.db['expenses'].items()), columns=['البند', 'المبلغ الشهري']))
-
-# --- التبويب 3: حساب الزكاة ---
-with tabs[2]:
-    st.subheader("⚖️ وعاء الزكاة السنوي")
-    zakat_list = []
-    for name, val in st.session_state.db['investments'].items():
-        if 'محلي' in name:
-            z_val = val * 0.025
-        else: # عالمي
-            z_val = (val * 0.25) * 0.025
-        zakat_list.append({"الصندوق": name, "الزكاة المستحقة": round(z_val, 2)})
-    
-    st.table(pd.DataFrame(zakat_list))
-    st.info("💡 يتم احتساب زكاة الصناديق العالمية على 25% من قيمتها بناءً على الفتاوى المعاصرة.")
-
-# --- التبويب 4: التوقعات المستقبيلة ---
-with tabs[3]:
-    st.subheader("🔮 نمو الثروة المتوقع (AI Forecast)")
-    years = st.select_slider("اختر الفترة الزمنية", options=[1, 2, 3, 4, 5], value=5)
-    
-    # محاكاة بسيطة
-    projection = []
-    current_a = assets
-    current_d = liabilities
-    for y in range(1, years + 1):
-        current_a *= 1.08 # افتراض نمو 8%
-        current_a += (2500 * 12) # افتراض استثمار 2500 شهرياً
-        current_d -= (7000 * 12) # افتراض سداد ديون
-        if current_d < 0: current_d = 0
-        projection.append({"السنة": f"سنة {y}", "الأصول": current_a, "الديون": current_d})
-    
-    st.line_chart(pd.DataFrame(projection).set_index("السنة"))
-
-# --- التبويب 5: تحديث البيانات ---
-with tabs[4]:
-    st.subheader("🔄 تحديث القيم يدوياً")
-    with st.form("update_form"):
-        st.write("قم بتحديث القيم السوقية للصناديق هنا:")
-        updated_vals = {}
+# --- تحديث البيانات وحفظها نهائياً ---
+with st.expander("🔄 تحديث القيم وحفظها نهائياً"):
+    with st.form("edit_form"):
+        updated_investments = {}
         for name, val in st.session_state.db['investments'].items():
-            updated_vals[name] = st.number_input(f"قيمة {name}", value=val)
+            updated_investments[name] = st.number_input(f"تعديل {name}", value=val)
         
-        if st.form_submit_button("اعتماد التحديث"):
-            st.session_state.db['investments'] = updated_vals
-            st.success("تم تحديث البيانات في الموقع بنجاح!")
+        if st.form_submit_button("حفظ التغييرات للأبد"):
+            st.session_state.db['investments'] = updated_investments
+            save_data(st.session_state.db) # هنا يتم الحفظ في الملف
+            st.success("✅ تم حفظ البيانات في ملف النظام بنجاح!")
