@@ -1,67 +1,115 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import datetime
 
-# --- ÅÚÏÇÏÇÊ ÇáãÍÑß ÇáÊäÈÄí ---
-st.header("?? ãÓÊÔÑİ ÇáËÑæÉ ÇáãÓÊŞÈáí (5 ÓäæÇÊ)")
+# --- Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„ØµÙØ­Ø© ---
+st.set_page_config(page_title="Ù†Ø¸Ø§Ù…ÙŠ Ø§Ù„Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…ØªÙƒØ§Ù…Ù„", layout="wide")
 
-with st.expander("?? ÅÚÏÇÏÇÊ ÇáİÑÖíÇÊ ÇáÊäÈÄíÉ"):
-    col_set1, col_set2 = st.columns(2)
-    with col_set1:
-        annual_growth = st.slider("ãÚÏá Çáäãæ ÇáÓäæí ÇáãÊæŞÚ ááãÍİÙÉ (%)", 1, 15, 8)
-        monthly_deposit = st.number_input("ÇáãÈáÛ ÇáÔåÑí ÇáãÓÊåÏİ ááÇÓÊËãÇÑ (ÑíÇá)", value=2500)
-    with col_set2:
-        projection_years = st.select_slider("ÇÎÊÑ İÊÑÉ ÇáÊäÈÄ (ÓäæÇÊ)", options=[1, 2, 3, 4, 5], value=5)
+# --- 1. Ù‚Ø§Ø¹Ø¯Ø© Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø§Ø®Ù„ÙŠØ© (Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø³ØªØ®Ø±Ø¬Ø© Ù…Ù† ØµÙˆØ±Ùƒ) ---
+if 'db' not in st.session_state:
+    st.session_state.db = {
+        'salary': 12835.0,
+        'housing_support': 1040.0,
+        'investments': {
+            'Ø§Ù„Ø±Ø§Ø¬Ø­ÙŠ Ø§Ù„Ù…Ø±Ù† (Ù…Ø­Ù„ÙŠ)': 92057.38,
+            'Ø§Ù„Ø±Ø§Ø¬Ø­ÙŠ Ø§Ù„Ù‚ÙŠØ§Ø¯ÙŠ (Ù…Ø­Ù„ÙŠ)': 65964.96,
+            'Ø§Ù„Ø±Ø§Ø¬Ø­ÙŠ Ø§Ù„Ù†Ø´Ø· (Ù…Ø­Ù„ÙŠ)': 63249.39,
+            'Ù…Ø´ÙˆØ±Ø© Ù†Ù…Ùˆ (Ø¹Ø§Ù„Ù…ÙŠ)': 19823.00,
+            'Ù…Ø´ÙˆØ±Ø© ØªÙˆØ²ÙŠØ¹Ø§Øª (Ø¹Ø§Ù„Ù…ÙŠ)': 2656.00,
+            'Ø¯Ø±Ø§ÙŠØ© Ø§Ù„Ù…Ø§Ù„ÙŠØ© (Ù…Ø­Ù„ÙŠ)': 3576.28
+        },
+        'debts': {
+            'Ø§Ù„Ù‚Ø±Ø¶ Ø§Ù„Ø¹Ù‚Ø§Ø±ÙŠ Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ': 624227.45,
+            'Ø§Ù„Ù‚Ø±Ø¶ Ø§Ù„Ø´Ø®ØµÙŠ Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ': 104882.85
+        },
+        'expenses': {
+            'Ù‚Ø³Ø· Ø§Ù„Ù‚Ø±Ø¶ Ø§Ù„Ø´Ø®ØµÙŠ': 3617.0,
+            'Ù‚Ø³Ø· Ø§Ù„Ø¹Ù‚Ø§Ø± (ØµØ§ÙÙŠ Ø¨Ø¹Ø¯ Ø§Ù„Ø¯Ø¹Ù…)': 2189.0,
+            'Ø±Ø§ØªØ¨ Ø§Ù„Ø³Ø§Ø¦Ù‚': 700.0,
+            'Ø¹Ø§Ù…Ù„Ø© Ù…Ù†Ø²Ù„ÙŠØ© (Ù…Ø³ØªÙ‚Ø¨Ù„ÙŠ)': 1200.0
+        }
+    }
 
-# --- ÎæÇÑÒãíÉ ÇáÍÓÇÈ ÇáÊäÈÄí ---
-def forecast_wealth(current_assets, current_debts, monthly_inv, growth_rate, years):
-    data = []
-    assets = current_assets
-    debts = current_debts
-    monthly_growth = (growth_rate / 100) / 12
+# --- 2. ÙˆØ¸Ø§Ø¦Ù Ø§Ù„Ø­Ø³Ø§Ø¨ ---
+def get_total_assets():
+    return sum(st.session_state.db['investments'].values())
+
+def get_total_debts():
+    return sum(st.session_state.db['debts'].values())
+
+# --- 3. ØªØµÙ…ÙŠÙ… ÙˆØ§Ø¬Ù‡Ø© Ø§Ù„Ù…ÙˆÙ‚Ø¹ ---
+st.title("ğŸ¦ Ù…Ø­ÙØ¸ØªÙŠ Ø§Ù„Ù…Ø§Ù„ÙŠØ© Ø§Ù„Ø°ÙƒÙŠØ©")
+st.markdown(f"**ØªØ§Ø±ÙŠØ® Ø§Ù„ØªØ­Ø¯ÙŠØ«:** {datetime.now().strftime('%Y-%m-%d')}")
+
+tabs = st.tabs(["ğŸ’ Ù…Ù„Ø®Øµ Ø§Ù„Ø«Ø±ÙˆØ©", "ğŸ“‰ Ø§Ù„Ø¯ÙŠÙˆÙ† ÙˆØ§Ù„Ø§Ù„ØªØ²Ø§Ù…Ø§Øª", "ğŸ•Œ Ø­Ø³Ø§Ø¨ Ø§Ù„Ø²ÙƒØ§Ø©", "ğŸ”® ØªÙˆÙ‚Ø¹Ø§Øª 5 Ø³Ù†ÙˆØ§Øª", "âš™ï¸ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª"])
+
+# --- Ø§Ù„ØªØ¨ÙˆÙŠØ¨ 1: Ù…Ù„Ø®Øµ Ø§Ù„Ø«Ø±ÙˆØ© ---
+with tabs[0]:
+    assets = get_total_assets()
+    liabilities = get_total_debts()
     
-    # ÃŞÓÇØ ÔåÑíÉ ËÇÈÊÉ (ŞÑÖ ÔÎÕí + ÚŞÇÑí ÕÇİí) = 5806 ÑíÇá ÊŞÑíÈÇğ
-    monthly_debt_payment = 3617 + 2189 
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø§Ø³ØªØ«Ù…Ø§Ø±Ø§Øª", f"{assets:,.2f} Ø±ÙŠØ§Ù„")
+    col2.metric("Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…Ø¯ÙŠÙˆÙ†ÙŠØ§Øª", f"{liabilities:,.2f} Ø±ÙŠØ§Ù„", delta_color="inverse")
+    col3.metric("ØµØ§ÙÙŠ Ø§Ù„Ø«Ø±ÙˆØ©", f"{assets - liabilities:,.2f} Ø±ÙŠØ§Ù„")
+
+    df_inv = pd.DataFrame(list(st.session_state.db['investments'].items()), columns=['Ø§Ù„ØµÙ†Ø¯ÙˆÙ‚', 'Ø§Ù„Ù‚ÙŠÙ…Ø©'])
+    fig = px.pie(df_inv, values='Ø§Ù„Ù‚ÙŠÙ…Ø©', names='Ø§Ù„ØµÙ†Ø¯ÙˆÙ‚', title="ØªÙˆØ²ÙŠØ¹ Ø£ÙˆØ²Ø§Ù† Ø§Ù„Ø§Ø³ØªØ«Ù…Ø§Ø±")
+    st.plotly_chart(fig)
+
+# --- Ø§Ù„ØªØ¨ÙˆÙŠØ¨ 2: Ø§Ù„Ø¯ÙŠÙˆÙ† ÙˆØ§Ù„Ø§Ù„ØªØ²Ø§Ù…Ø§Øª ---
+with tabs[1]:
+    st.subheader("âš ï¸ Ø³Ø¬Ù„ Ø§Ù„Ø¯ÙŠÙˆÙ† ÙˆØ§Ù„Ø§Ù„ØªØ²Ø§Ù…Ø§Øª")
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        st.write("**Ø§Ù„Ù‚Ø±ÙˆØ¶ Ø§Ù„Ø¨Ù†ÙƒÙŠØ© Ø§Ù„Ù…ØªØ¨Ù‚ÙŠØ©:**")
+        st.table(pd.DataFrame(list(st.session_state.db['debts'].items()), columns=['Ø§Ù„Ø¨Ù†Ø¯', 'Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ']))
+    with col_d2:
+        st.write("**Ø§Ù„Ù…ØµØ§Ø±ÙŠÙ Ø§Ù„Ø«Ø§Ø¨ØªØ© Ø§Ù„Ù‚Ø§Ø¯Ù…Ø©:**")
+        st.table(pd.DataFrame(list(st.session_state.db['expenses'].items()), columns=['Ø§Ù„Ø¨Ù†Ø¯', 'Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ø´Ù‡Ø±ÙŠ']))
+
+# --- Ø§Ù„ØªØ¨ÙˆÙŠØ¨ 3: Ø­Ø³Ø§Ø¨ Ø§Ù„Ø²ÙƒØ§Ø© ---
+with tabs[2]:
+    st.subheader("âš–ï¸ ÙˆØ¹Ø§Ø¡ Ø§Ù„Ø²ÙƒØ§Ø© Ø§Ù„Ø³Ù†ÙˆÙŠ")
+    zakat_list = []
+    for name, val in st.session_state.db['investments'].items():
+        if 'Ù…Ø­Ù„ÙŠ' in name:
+            z_val = val * 0.025
+        else: # Ø¹Ø§Ù„Ù…ÙŠ
+            z_val = (val * 0.25) * 0.025
+        zakat_list.append({"Ø§Ù„ØµÙ†Ø¯ÙˆÙ‚": name, "Ø§Ù„Ø²ÙƒØ§Ø© Ø§Ù„Ù…Ø³ØªØ­Ù‚Ø©": round(z_val, 2)})
     
-    for month in range(1, (years * 12) + 1):
-        # äãæ ÇáÃÕæá + ÇáÅíÏÇÚ ÇáÔåÑí
-        assets = (assets * (1 + monthly_growth)) + monthly_inv
-        # ÇäÎİÇÖ ÇáÏíæä (ÊÈÓíØíÇğ)
-        if debts > 0:
-            debts -= monthly_debt_payment
-            if debts < 0: debts = 0
-            
-        if month % 12 == 0:
-            year_num = month // 12
-            data.append({
-                "ÇáÓäÉ": f"ÇáÓäÉ {year_num}",
-                "ÅÌãÇáí ÇáÃÕæá": round(assets, 2),
-                "ÅÌãÇáí ÇáÏíæä": round(debts, 2),
-                "ÕÇİí ÇáËÑæÉ": round(assets - debts, 2)
-            })
-    return pd.DataFrame(data)
+    st.table(pd.DataFrame(zakat_list))
+    st.info("ğŸ’¡ ÙŠØªÙ… Ø§Ø­ØªØ³Ø§Ø¨ Ø²ÙƒØ§Ø© Ø§Ù„ØµÙ†Ø§Ø¯ÙŠÙ‚ Ø§Ù„Ø¹Ø§Ù„Ù…ÙŠØ© Ø¹Ù„Ù‰ 25% Ù…Ù† Ù‚ÙŠÙ…ØªÙ‡Ø§ Ø¨Ù†Ø§Ø¡Ù‹ Ø¹Ù„Ù‰ Ø§Ù„ÙØªØ§ÙˆÙ‰ Ø§Ù„Ù…Ø¹Ø§ØµØ±Ø©.")
 
-# --- ÚÑÖ ÇáäÊÇÆÌ ---
-total_assets_now = sum(st.session_state.investments.values())
-total_debts_now = sum(st.session_state.debts.values())
+# --- Ø§Ù„ØªØ¨ÙˆÙŠØ¨ 4: Ø§Ù„ØªÙˆÙ‚Ø¹Ø§Øª Ø§Ù„Ù…Ø³ØªÙ‚Ø¨ÙŠÙ„Ø© ---
+with tabs[3]:
+    st.subheader("ğŸ”® Ù†Ù…Ùˆ Ø§Ù„Ø«Ø±ÙˆØ© Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ (AI Forecast)")
+    years = st.select_slider("Ø§Ø®ØªØ± Ø§Ù„ÙØªØ±Ø© Ø§Ù„Ø²Ù…Ù†ÙŠØ©", options=[1, 2, 3, 4, 5], value=5)
+    
+    # Ù…Ø­Ø§ÙƒØ§Ø© Ø¨Ø³ÙŠØ·Ø©
+    projection = []
+    current_a = assets
+    current_d = liabilities
+    for y in range(1, years + 1):
+        current_a *= 1.08 # Ø§ÙØªØ±Ø§Ø¶ Ù†Ù…Ùˆ 8%
+        current_a += (2500 * 12) # Ø§ÙØªØ±Ø§Ø¶ Ø§Ø³ØªØ«Ù…Ø§Ø± 2500 Ø´Ù‡Ø±ÙŠØ§Ù‹
+        current_d -= (7000 * 12) # Ø§ÙØªØ±Ø§Ø¶ Ø³Ø¯Ø§Ø¯ Ø¯ÙŠÙˆÙ†
+        if current_d < 0: current_d = 0
+        projection.append({"Ø§Ù„Ø³Ù†Ø©": f"Ø³Ù†Ø© {y}", "Ø§Ù„Ø£ØµÙˆÙ„": current_a, "Ø§Ù„Ø¯ÙŠÙˆÙ†": current_d})
+    
+    st.line_chart(pd.DataFrame(projection).set_index("Ø§Ù„Ø³Ù†Ø©"))
 
-projection_df = forecast_wealth(total_assets_now, total_debts_now, monthly_deposit, annual_growth, projection_years)
-
-# ÇáÑÓã ÇáÈíÇäí ááÊäÈÄ
-fig_proj = px.line(projection_df, x="ÇáÓäÉ", y=["ÅÌãÇáí ÇáÃÕæá", "ÅÌãÇáí ÇáÏíæä", "ÕÇİí ÇáËÑæÉ"],
-                  title="ãÓÇÑ äãæ ÇáËÑæÉ ÇáÕÇİíÉ æÊäÇŞÕ ÇáÏíæä",
-                  labels={"value": "ÇáãÈáÛ (ÑíÇá)", "variable": "ÇáÈäÏ"},
-                  markers=True)
-st.plotly_chart(fig_proj, use_container_width=True)
-
-# ÌÏæá ÇáÈíÇäÇÊ ÇáÊäÈÄíÉ
-st.subheader("?? ÌÏæá ÇáÈíÇäÇÊ ÇáãÊæŞÚÉ")
-st.dataframe(projection_df.set_index("ÇáÓäÉ"), use_container_width=True)
-
-# ÊÍáíá ÇáĞßÇÁ ÇáÇÕØäÇÚí ááÊäÈÄ
-st.markdown("---")
-final_net_worth = projection_df.iloc[-1]["ÕÇİí ÇáËÑæÉ"]
-if final_net_worth > 0:
-    st.success(f"?? **ÈÔÑì ãÇáíÉ:** ÈäÇÁğ Úáì åĞÇ ÇáãÓÇÑ¡ ÓÊÊÍæá ËÑæÊß ÇáÕÇİíÉ Åáì ÇáÑŞã **ÇáãæÌÈ** ÎáÇá İÊÑÉ ÇáÊäÈÄ¡ áÊÕá Åáì **{final_net_worth:,.2f} ÑíÇá** ÈÚÏ {projection_years} ÓäæÇÊ.")
-else:
-    st.warning("?? **ÊÍáíá ÇáãÓÇÑ:** ÇáÏíæä áÇ ÊÒÇá ÊÖÛØ Úáì ÕÇİí ÇáËÑæÉ. ääÕÍ ÈÒíÇÏÉ ãÈÇáÛ 'ÇáÊßáíİ' ÇáãæÌåÉ áÓÏÇÏ ÇáŞÑÖ ÇáÔÎÕí áÊÓÑíÚ ÇáæÕæá áäŞØÉ ÇáÊÚÇÏá.")
+# --- Ø§Ù„ØªØ¨ÙˆÙŠØ¨ 5: ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª ---
+with tabs[4]:
+    st.subheader("ğŸ”„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù‚ÙŠÙ… ÙŠØ¯ÙˆÙŠØ§Ù‹")
+    with st.form("update_form"):
+        st.write("Ù‚Ù… Ø¨ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù‚ÙŠÙ… Ø§Ù„Ø³ÙˆÙ‚ÙŠØ© Ù„Ù„ØµÙ†Ø§Ø¯ÙŠÙ‚ Ù‡Ù†Ø§:")
+        updated_vals = {}
+        for name, val in st.session_state.db['investments'].items():
+            updated_vals[name] = st.number_input(f"Ù‚ÙŠÙ…Ø© {name}", value=val)
+        
+        if st.form_submit_button("Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„ØªØ­Ø¯ÙŠØ«"):
+            st.session_state.db['investments'] = updated_vals
+            st.success("ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª ÙÙŠ Ø§Ù„Ù…ÙˆÙ‚Ø¹ Ø¨Ù†Ø¬Ø§Ø­!")
